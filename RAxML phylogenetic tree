@@ -1,0 +1,15 @@
+#RAxML phylogenetic tree construction with the aligned single copy genes obtained with the GToTree pipeline as input. This script was run as a batch job on the Harvard High Performance Computing Cluster (HPC). 
+
+#!/bin/bash
+#SBATCH -c 8                # Number of cores (-c)
+#SBATCH -t 0-24:00          # Runtime in D-HH:MM, minimum of 10 minutes
+#SBATCH -p sapphire   # Partition to submit to
+#SBATCH --mem=1000000          # Memory pool for all cores
+#SBATCH -o raxml_output_%j.out  # Standard output file
+#SBATCH -e raxml_error_%j.err   # Standard error file
+source ~/miniconda3/bin/activate 
+module load Mambaforge/23.11.0-fasrc01
+#Activate the raxml conda environment, which should have the packages required for raxml
+mamba activate /n/home08/mcoste/miniconda3/envs/raxml 
+#Construct the phylogenetic tree (PROTGAMMALG maximum likelihood method used here)
+raxmlHPC -s /n/netscratch/girguis_lab/Lab/m_coste/gtotree_output/Aligned_SCGs_mod_names.faa -n raxml_output_tree -m PROTGAMMALG -p 12345 -f a -x 12345 -N 100
