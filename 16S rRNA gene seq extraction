@@ -1,0 +1,65 @@
+#This script is developed to write out in fasta format the nucleotide sequences of the 16S rRNA genes. Since these are bactrial genomes which contain multiple 16S rRNA genes per genome, all sequences are listed for each genome and a line is skipped between each genome. 
+
+import subprocess
+import os
+
+# Define input and output files
+input_file = "accession_nbs_grep.txt"
+output_file = "16S_fasta_allgenes.txt"  # Updated output file name
+
+# Read accession numbers from input file
+with open(input_file) as f:
+    accession_numbers = [line.strip() for line in f if line.strip()]
+
+# Open the output file for writing
+with open(output_file, "w") as out:
+    for accession in accession_numbers:
+        try:
+            # Download genome sequence and gff file for each accession number from NCBI
+            genome_zip = f"genome_data_{accession}.zip"
+            subprocess.run(
+                ["datasets", "download", "genome", "accession", accession, "--include", "gff3", "--include", "genome", "--filename", genome_zip],
+                check=True
+            )
+            
+            # Unzip the downloaded file into a separate folder for the accession
+            subprocess.run(["unzip", "-o", genome_zip, "-d", f"genome_data_{accession}"], check=True)
+
+            # Define the directory and gff file
+            fasta_dir = f"genome_data_{accession}/ncbi_dataset/data/{accession}/"
+            gff_file = os.path.join(fasta_dir, "genomic.gff")  
+
+            # Extract the 16S rRNA gene regions using grep and awk
+            bed_file = f"16S_{accession}.bed"
+            subprocess.run(
+                f"grep -i '16S rRNA' {gff_file} | awk '{{if ($4 == \"CDS\") print $1, $5-1, $6; else print $1, $4-1, $5}}' OFS='\t' > {bed_file}",
+                shell=True,
+                check=True
+            )
+            
+            # Find the fasta file and use bedtools to extract the 16S sequences
+            fasta_file_path = None
+            for file in os.listdir(fasta_dir):
+                if file.endswith('.fna'):
+                    fasta_file_path = os.path.join(fasta_dir, file)
+                    break
+            
+            if not fasta_file_path:
+                print(f"FASTA file not found for accession {accession}, skipping.")
+                continue
+
+            # Extract sequences using bedtools
+            fasta_file = f"16S_{accession}_sequence.fasta"
+            subprocess.run(
+                ["bedtools", "getfasta", "-fi", fasta_file_path, "-bed", bed_file, "-fo", fasta_file],
+                check=True
+            )
+
+            # Write each sequence separately to the output file
+            with open(fasta_file, "r") as fasta_input:
+                for line in fasta_input:
+                    out.write(line)  # Write each line (header or sequence) to the output file
+                out.write("\n")  # Add a newline between sequences
+
+        except subprocess.CalledProcessError as e:
+            print(f"Error processing {accession}: {e}")
