@@ -1,0 +1,38 @@
+#Script to build a phylogenetic tree with GToTree with the entire fasta files of the bacterial genomes as input. 
+
+import subprocess
+import os
+
+# Activate the GToTree conda environment, which should have the necessary GToTree packages installed 
+subprocess.run("conda activate gtotree", shell=True, executable="/bin/bash")
+
+# Directory to store downloaded genomes
+GENOME_DIR = "downloaded_genomes"
+os.makedirs(GENOME_DIR, exist_ok=True)
+
+# File containing accession numbers
+ACCESSION_FILE = "acc_nbs_allgenomes"
+
+# Download genomes from NCBI
+print("Downloading genomes from NCBI...")
+accessions = subprocess.run(f"paste -sd, {ACCESSION_FILE}", shell=True, capture_output=True, text=True).stdout.strip()
+subprocess.run(f"ncbi-genome-download --accessions {accessions} --formats fasta --output-folder {GENOME_DIR} bacteria", shell=True, executable="/bin/bash")
+
+# Move all downloaded FASTA files to a single directory
+ALL_GENOMES_DIR = os.path.join(GENOME_DIR, "all_genomes")
+os.makedirs(ALL_GENOMES_DIR, exist_ok=True)
+subprocess.run(f"find {GENOME_DIR} -name '*.fna.gz' -exec cp {{}} {ALL_GENOMES_DIR} \\;", shell=True, executable="/bin/bash")
+
+# Unzip the FASTA files
+print("Unzipping FASTA files...")
+subprocess.run(f"gunzip {ALL_GENOMES_DIR}/*.fna.gz", shell=True, executable="/bin/bash")
+
+# Run GToTree to build the phylogenetic tree with the specified outgroup (accession nb GCF_000022005.1)
+print("Building phylogenetic tree with GToTree...")
+subprocess.run(
+    f"GToTree -a {ACCESSION_FILE} -f {ALL_GENOMES_DIR} -o gtotree_output -H Bacteria -t 4 -O GCF_000022005.1",
+    shell=True,
+    executable="/bin/bash"
+)
+
+print("Phylogenetic tree construction complete. Results are in the 'gtotree_output' directory.")
