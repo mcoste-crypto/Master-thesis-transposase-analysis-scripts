@@ -1,0 +1,4 @@
+#Script to create a phylogenetic tree using IQTree based on a file in fasta format with the nucleotide sequences of the 16S rRNA genes. The following code was run of the Harvard High Performance Computing (HPC) cluster. 
+mafft --auto 16S_fasta_blastmanualfilter.txt > 16S_aligned_blastmanualfilter.fasta
+iqtree -s 16S_aligned_blastmanualfilter.fasta -m MFP -bb 1000 -alrt 1000 -nt AUTO 
+#The phylognetic tree is saved under the .treefile (16S_aligned_blastmanualfilter.fasta.treefile in this case)
