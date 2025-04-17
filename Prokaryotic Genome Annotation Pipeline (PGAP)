@@ -1,0 +1,15 @@
+#The following bash script was used to annotate genomes from NCBI with the Prokaryotic Genome Annotation Pipeline (PGAP) using the fasta files of the genomes as input. It was run on the Harvard High Performance Computing (HPC) cluster. 
+# -o is the output directory and -g is the path to the input genome fasta file 
+
+#!/bin/sh
+env -u SLURM_CPUS_PER_TASK \
+  SINGULARITYENV_PGAP_INPUT_DIR=$PWD/pgap_input \
+  SINGULARITY_CONTAINALL=1 \
+  SINGULARITY_BIND=$PWD \
+  SINGULARITY_WORKDIR=$(mktemp -d) \
+  ./pgap.py -n --debug \
+            --docker singularity \
+            --container-path pgap_2024-07-18.build7555.sif \
+            --no-self-update \
+            -o Archgig_results \
+            -g $PWD/pgap_input/ncbi_dataset/data/GCA_021730225.1/GCA_021730225.1_ASM2173022v1_genomic.fna -s 'Candidatus Vesicomyosocius'
