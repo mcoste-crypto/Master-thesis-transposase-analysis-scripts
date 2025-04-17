@@ -1,0 +1,80 @@
+# This is the Rcode used to obtain the boxplot of transposase gene percentage by host family. This script can be adjusted for all other boxplots created. 
+
+# Load necessary packages 
+library(readxl)
+library(ggplot2)
+library(ggbeeswarm)
+library(grid)
+library(dplyr)
+
+setwd("C:/Documents/Master thesis/R/Masterthestransproject/00-rawdata")
+
+# Import data
+data <- read_excel("Perc_trans by host family.np.xlsx")
+
+# Create boxplot
+ggplot(data, aes(x = Host_family, y = Perc_trans)) +
+  geom_boxplot() +
+  geom_beeswarm(size = 1.5) +
+  theme_minimal() +
+  labs(x = "Host Family", y = "Genome % of Transposase Genes", title = "Bacterial Genome % of Transposase Genes by Host Family") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 14),  # Increase x-axis label size
+    axis.text.y = element_text(size = 14),                         # Increase y-axis label size
+    plot.title = element_text(size = 16),                           # Increase title size
+    axis.title.x = element_text(size = 14),                         # Increase x-axis title size
+    axis.title.y = element_text(size = 14, margin = margin(r = 10))                          # Increase y-axis title size
+  )
+grid.rect(gp = gpar(col = "black", lwd = 3, fill = NA))
+
+# Calculate and print the average Perc_trans for each Host_family
+average_perc_trans <- data %>%
+  group_by(Host_family) %>%
+  summarise(Average_Perc_trans = mean(Perc_trans, na.rm = TRUE))
+
+print(average_perc_trans)
+
+# Calculate and print the median Perc_trans for each Host_family
+median_perc_trans <- data %>%
+  group_by(Host_family) %>%
+  summarise(Median_Perc_trans = median(Perc_trans, na.rm = TRUE))
+
+print(median_perc_trans)
+
+# Define a function to remove outliers for each host family
+remove_outliers <- function(df) {
+  # Calculate mean and standard deviation for each host family
+  mean_val <- mean(df$Perc_trans, na.rm = TRUE)
+  sd_val <- sd(df$Perc_trans, na.rm = TRUE)
+  
+  # Define the threshold for outliers (2 standard deviations from the mean)
+  lower_bound <- mean_val - 2 * sd_val
+  upper_bound <- mean_val + 2 * sd_val
+  
+  # Filter out the outliers for the Host Family based on these bounds
+  df_no_outliers <- df %>% filter(Perc_trans >= lower_bound & Perc_trans <= upper_bound)
+  
+  return(df_no_outliers)
+}
+
+# Apply the outlier removal function to each host family group
+data_no_outliers <- data %>%
+  group_by(Host_family) %>%
+  do(remove_outliers(.))  # Apply the function to each group
+
+# Create boxplot without outliers
+ggplot(data_no_outliers, aes(x = Host_family, y = Perc_trans)) +
+  geom_boxplot() +
+  geom_beeswarm(size = 1.5) +
+  theme_minimal() +
+  labs(x = "Host Family", y = "Genome % of Transposase Genes", title = "Bacterial Genome % of Transposase Genes by Host Family (Outliers Removed)") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 12),  # Increase x-axis label size
+    axis.text.y = element_text(size = 14),                         # Increase y-axis label size
+    plot.title = element_text(size = 16),                           # Increase title size
+    axis.title.x = element_text(size = 14),                         # Increase x-axis title size
+    axis.title.y = element_text(size = 14, margin = margin(r = 10))                          # Increase y-axis title size
+  )
+
+grid.rect(gp = gpar(col = "black", lwd = 3, fill = NA))
+
