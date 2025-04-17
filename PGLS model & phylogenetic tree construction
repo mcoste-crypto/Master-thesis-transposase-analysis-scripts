@@ -1,0 +1,129 @@
+#The following is the R script for the construction of the PGLS model, phylogenetic signal tests, and the phylogenetic tree figure for marine symbiotic bacteria. The script can be adapted for the phylogenetic trees with, in addition to the marine symbionts, either free-living bacteria or terrestrial symbionts.  
+
+# Load libraries
+library(here)
+library(caper)
+library(readxl)
+library(dplyr)
+library(ape)
+library(nlme)
+library(phytools)
+library(ggplot2)
+library(grid)
+
+# Set working directory
+setwd(here("02-phylodata"))
+
+# Load data
+transdata <- read_excel("For PGLS-Perc_trans vs host_fam.xlsx") %>%
+  rename(sp = Tree_label)
+head(transdata)
+
+# Load the phylogenetic tree
+symbiont_tree <- read.tree("ultrametric_gtotree_symb_rootedoutgroup.txt")
+
+# Extract accession numbers
+accession_numbers <- sapply(strsplit(symbiont_tree$tip.label, "_"), function(x) paste(x[1], x[2], sep = "_"))
+symbiont_tree$tip.label <- accession_numbers
+
+# Create tree for visualization
+plot_tree <- symbiont_tree
+outgroup_tip <- "GCF_000376425.1"
+outgroup_label <- "Thiobacillus denitrificans"
+plot_tree$tip.label[plot_tree$tip.label == outgroup_tip] <- outgroup_label
+
+# Create tree for stats analyses (without the outgroup)
+analysis_tree <- drop.tip(symbiont_tree, "GCF_000376425.1")
+analysis_tree$edge.length <- analysis_tree$edge.length * 100  # Required for PGLS and phylosig
+
+# Attribute names to transposase gene percentages 
+perc_trans <- transdata$Perc_trans
+names(perc_trans) <- transdata$sp
+
+# Reorder perc_trans for plotting tree
+plot_perc_trans <- perc_trans[match(plot_tree$tip.label, names(perc_trans))]
+
+# Replace tip labels with Final_label (excluding the outgroup)
+for (i in 1:Ntip(plot_tree)) {
+  if (plot_tree$tip.label[i] != outgroup_label) {
+    plot_tree$tip.label[i] <- transdata$Final_label[match(plot_tree$tip.label[i], transdata$sp)]
+  }
+}
+
+# Create color gradient for percentage
+color_palette <- colorRampPalette(c("white", "black"))
+colors <- color_palette(100)[as.numeric(cut(plot_perc_trans, breaks = 100))]
+names(colors) <- plot_tree$tip.label
+
+# Plot the tree with colored tip markers
+plot.phylo(plot_tree, show.tip.label = TRUE, label.offset = 0.037, cex = 0.8)
+for (i in 1:Ntip(plot_tree)) {
+  if (plot_tree$tip.label[i] != outgroup_label) {
+    tiplabels(pch = 21, bg = colors[i], cex = 1.5, adj = 0.5, offset = 0.011, tip = i)
+  }
+}
+
+# Add gradient legend
+legend_colors <- color_palette(5)
+legend_labels <- round(seq(min(perc_trans, na.rm = TRUE), max(perc_trans, na.rm = TRUE), length.out = 5))
+legend("topleft", legend = legend_labels, pch = 21, pt.bg = legend_colors, 
+       title = "Genome % of Transposase Genes", cex = 0.8, bty = "o", box.col = "black", box.lwd = 0.2, horiz = TRUE, pt.cex = 1.5)
+
+# Add Host_family colored label boxes
+host_family_colors <- rainbow(length(unique(transdata$Host_family)))
+names(host_family_colors) <- unique(transdata$Host_family)
+
+tip_coords <- get("last_plot.phylo", envir = .PlotPhyloEnv)$xx[1:Ntip(plot_tree)]
+label_coords <- get("last_plot.phylo", envir = .PlotPhyloEnv)$yy[1:Ntip(plot_tree)]
+
+for (i in 1:Ntip(plot_tree)) {
+  if (plot_tree$tip.label[i] != outgroup_label) {
+    host_family <- transdata$Host_family[match(plot_tree$tip.label[i], transdata$Final_label)]
+    box_color <- host_family_colors[host_family]
+
+    box_width <- strwidth(plot_tree$tip.label[i], cex = 0.8) * 1.2
+    box_height <- strheight(plot_tree$tip.label[i], cex = 0.8) * 1.2
+
+    rect(
+      xleft = tip_coords[i] + 0.04,
+      ybottom = label_coords[i] - box_height / 2,
+      xright = tip_coords[i] + 0.01 + box_width,
+      ytop = label_coords[i] + box_height / 2,
+      col = adjustcolor(box_color, alpha.f = 0.15),
+      border = NA
+    )
+  }
+}
+
+# Legend for Host_family
+legend("topleft", legend = names(host_family_colors), fill = adjustcolor(host_family_colors, alpha.f = 0.3),
+       title = "Host Family", cex = 0.8, bty = "o", box.col = "black", box.lwd = 0.2, inset = c(0, 0.15))
+
+# PGLS model
+pglsModel <- gls(
+  Perc_trans ~ Host_family,
+  correlation = corMartins(1, phy = analysis_tree),
+  data = transdata %>%
+    mutate(sp = factor(sp, levels = analysis_tree$tip.label)) %>%
+    arrange(sp)
+)
+summary(pglsModel)
+
+# Scatterplot
+ggplot(transdata, aes(x = Genome_length, y = Perc_trans, color = Host_family)) +
+  geom_point(alpha = 1, size = 2) +
+  labs(title = "Transposase Gene % in Genome by Bacterial Genome Size and Host Family",
+       x = "Genome Size (Mb)",
+       y = "Transposase Gene %",
+       color = "Host Family") +
+  theme_minimal()
+grid.rect(gp = gpar(col = "black", lwd = 3, fill = NA))
+
+# Phylogenetic signal tests
+signal_vector <- perc_trans[match(analysis_tree$tip.label, names(perc_trans))]
+
+lambda_result <- phylosig(analysis_tree, signal_vector, method = "lambda")
+print(lambda_result)
+
+K_result <- phylosig(analysis_tree, signal_vector, method = "K")
+print(K_result)
