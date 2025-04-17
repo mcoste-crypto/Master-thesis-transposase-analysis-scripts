@@ -1,0 +1,71 @@
+# Rcode for the scatterplot of the transposase gene percentage by total genome size and the appropriate statistical test
+
+# Load necessary libraries
+library(ggplot2)
+library(readxl)
+
+setwd("C:/Documents/Master thesis/R/Masterthestransproject/00-rawdata")
+
+# Read your data from the Excel file
+data <- read_excel("Perc_trans by genome size.xlsx")  # replace with your file path
+
+# Create the scatter plot
+ggplot(data, aes(x = Genome_size, y = Perc_trans, color = Lifestyle)) +
+  geom_point(size = 3) +  # add points (dots)
+  geom_smooth(method = "lm", se = FALSE, aes(group = Lifestyle), linetype = "solid") +  # Add linear trendlines for each lifestyle
+  scale_color_manual(values = c("Symbiotic" = "blue", "Free-living" = "red")) +  # Customize colors for Lifestyle
+  labs(
+    x = "Genome Size (Mb)",
+    y = "Genome % of Transposase Genes",
+    color = "Bacterial Lifestyle"
+  ) +
+  ggtitle("Genome Size vs. Genome % of Transposase Genes") +
+  theme_bw()  # clean, black and white theme
+
+# Calculate average genome size by lifestyle group
+average_genome_size <- data %>%
+  group_by(Lifestyle) %>%
+  summarise(
+    Mean_Genome_Size_Mb = mean(Genome_size, na.rm = TRUE),
+    SD_Genome_Size = sd(Genome_size, na.rm = TRUE),
+    n = n()
+  )
+
+# Print the results
+cat("\nAverage Genome Size by Lifestyle Group (Mb):\n")
+print(average_genome_size)
+
+# Test for normality in each group
+shapiro_results <- data %>%
+  group_by(Lifestyle) %>%
+  summarise(
+    Shapiro_p_value = shapiro.test(Genome_size)$p.value
+  )
+cat("\nNormality Test Results (Shapiro-Wilk):\n")
+print(shapiro_results)
+
+# Test for equal variances
+var_test <- var.test(Genome_size ~ Lifestyle, data = data)
+cat("\nVariance Equality Test (F-test):\n")
+print(var_test)
+
+# Perform appropriate statistical test
+if(all(shapiro_results$Shapiro_p_value > 0.05)) {
+  # If data is normal in both groups
+  if(var_test$p.value > 0.05) {
+    # If variances are equal
+    test_result <- t.test(Genome_size ~ Lifestyle, data = data, var.equal = TRUE)
+    cat("\nStudent's t-test (equal variances):\n")
+  } else {
+    # If variances are unequal
+    test_result <- t.test(Genome_size ~ Lifestyle, data = data, var.equal = FALSE)
+    cat("\nWelch's t-test (unequal variances):\n")
+  }
+} else {
+  # If data is not normal
+  test_result <- wilcox.test(Genome_size ~ Lifestyle, data = data)
+  cat("\nMann-Whitney U test (non-parametric):\n")
+}
+
+print(test_result)
+
