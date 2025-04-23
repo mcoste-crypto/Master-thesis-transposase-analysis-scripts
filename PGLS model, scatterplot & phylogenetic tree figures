@@ -110,6 +110,16 @@ pglsModel <- gls(
 summary(pglsModel)
 
 # Scatterplot
+# Reorder Host_family by increasing average Genome_length
+transdata <- transdata %>%
+  group_by(Host_family) %>%
+  mutate(Host_family = factor(Host_family, levels = transdata %>%
+                                 group_by(Host_family) %>%
+                                 summarise(avg_genome = mean(Genome_length, na.rm = TRUE)) %>%
+                                 arrange(avg_genome) %>%
+                                 pull(Host_family)))
+
+# Scatterplot with reordered Host_family
 ggplot(transdata, aes(x = Genome_length, y = Perc_trans, color = Host_family)) +
   geom_point(alpha = 0.85, size = 2.7) +
   stat_ellipse(
@@ -134,6 +144,7 @@ ggplot(transdata, aes(x = Genome_length, y = Perc_trans, color = Host_family)) +
     axis.title = element_text(size = 14),
     axis.text = element_text(size = 12)
   )
+
 grid.rect(gp = gpar(col = "black", lwd = 3, fill = NA))
 
 # Phylogenetic signal tests
