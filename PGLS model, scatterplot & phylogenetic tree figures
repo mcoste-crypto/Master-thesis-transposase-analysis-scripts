@@ -1,4 +1,4 @@
-#The following is the R script for the construction of the PGLS model, phylogenetic signal tests, and the phylogenetic tree figure for marine symbiotic bacteria. The script can be adapted for the phylogenetic trees with, in addition to the marine symbionts, either free-living bacteria or terrestrial symbionts.  
+#The following is the R script for the construction of the PGLS model, phylogenetic signal tests, the scatterplot of transposase gene percentages based on genome size and host family, and the phylogenetic tree figure for marine symbiotic bacteria. The script can be adapted for the phylogenetic trees with, in addition to the marine symbionts, either free-living bacteria or terrestrial symbionts.  
 
 # Load libraries
 library(here)
@@ -111,12 +111,29 @@ summary(pglsModel)
 
 # Scatterplot
 ggplot(transdata, aes(x = Genome_length, y = Perc_trans, color = Host_family)) +
-  geom_point(alpha = 1, size = 2) +
-  labs(title = "Transposase Gene % in Genome by Bacterial Genome Size and Host Family",
-       x = "Genome Size (Mb)",
-       y = "Transposase Gene %",
-       color = "Host Family") +
-  theme_minimal()
+  geom_point(alpha = 0.85, size = 2.7) +
+  stat_ellipse(
+    aes(fill = Host_family), 
+    type = "norm", 
+    level = 0.68, 
+    alpha = 0.15, 
+    geom = "polygon", 
+    color = NA
+  ) +
+  labs(
+    title = "Transposase Gene % in Genome by Bacterial Genome Size and Host Family",
+    x = "Genome Size (Mb)",
+    y = "Transposase Gene %",
+    color = "Host Family",
+    fill = "Host Family"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    legend.position = "right",
+    plot.title = element_text(size = 16, face = "bold"),
+    axis.title = element_text(size = 14),
+    axis.text = element_text(size = 12)
+  )
 grid.rect(gp = gpar(col = "black", lwd = 3, fill = NA))
 
 # Phylogenetic signal tests
