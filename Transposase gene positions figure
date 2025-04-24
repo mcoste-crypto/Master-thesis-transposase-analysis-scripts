@@ -108,11 +108,12 @@ def draw_genome_diagram(ax, label, positions, genome_length, origin):
     ax.axhline(0.5, color='grey', linewidth=2, alpha=0.7)
 
     # Custom scale markers
+    tick_y = 0.2
     tick_height = 0.03
     for x in np.linspace(0, genome_length, 11):
         ax.axvline(x, color='lightgrey', linestyle='--', alpha=0.5)
-        ax.plot([x, x], [0.5 - tick_height, 0.5 + tick_height], color='black', linewidth=0.5)  # Tick marks
-        ax.text(x, 0.45, f"{x/1000:.0f}k", ha='center', va='top', fontsize=7)
+        ax.plot([x, x], [tick_y, tick_y + tick_height], color='black', linewidth=0.5)  # Tick marks below chromosome
+        ax.text(x, tick_y - 0.02, f"{x/1000:.0f}k", ha='center', va='top', fontsize=7)
 
     # Draw transposase features
     for i, (start, end) in enumerate(positions):
