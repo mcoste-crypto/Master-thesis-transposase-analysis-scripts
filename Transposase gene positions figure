@@ -1,0 +1,172 @@
+#Python script using the matplotlib library for the figure of transposase gene positions (clustering) along each genome 
+
+import subprocess
+
+input_file = "accession_nbs_grep.txt"
+output_file = "trans_fractpos_with_ori.txt"
+
+with open(input_file) as f:
+    accession_numbers = [line.strip() for line in f if line.strip()]
+
+with open(output_file, "w") as out:
+    out.write("Accession\tGenomeLength\tOrigin\tTransposaseFraction\tTransposasePositions\n")
+
+    for accession in accession_numbers:
+        try:
+            print(f"\nProcessing {accession}...")
+            subprocess.run(["datasets", "download", "genome", "accession", accession, "--include", "gff3", "--filename", "genome_data.zip"], check=True)
+            subprocess.run(["unzip", "-o", "genome_data.zip"], check=True)
+
+            gff_file = f"ncbi_dataset/data/{accession}/genomic.gff"
+
+            # Genome length
+            genome_length = subprocess.run(
+                f"awk '$3 == \"region\" || $3 == \"chromosome\" || $3 == \"contig\" {{sum += $5 - $4 + 1}} END {{print sum}}' {gff_file}", 
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, shell=True
+            ).stdout.strip()
+
+            # dnaA origin
+            origin_result = subprocess.run(
+                f"grep -i 'dnaA' {gff_file} | awk 'NR==1 {{print $4}}'", 
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, shell=True
+            ).stdout.strip()
+
+            if origin_result.isdigit():
+                origin = int(origin_result)
+                print(f"  ✅ dnaA gene found at position {origin}")
+            else:
+                origin = ""
+                print(f"  ❌ dnaA gene not found")
+
+            # Transposase regions with your updated awk logic
+            subprocess.run(
+                f"grep -i 'transposase' {gff_file} | grep -v 'pseudo=true' | awk '{{if ($4 == \"CDS\") print $1, $5-1, $6; else print $1, $4-1, $5}}' OFS='\t' > transposase.bed", 
+                shell=True, check=True
+            )
+
+            transposase_positions = subprocess.run(
+                "cat transposase.bed", stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, shell=True
+            ).stdout.strip()
+
+            subprocess.run("sort -k1,1 -k2,2n transposase.bed > transposase_sorted.bed", shell=True, check=True)
+            subprocess.run("bedtools merge -i transposase_sorted.bed > merged.bed", shell=True, check=True)
+
+            transposase_length = subprocess.run(
+                "awk '{sum += $3 - $2} END {print sum}' merged.bed", 
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, shell=True
+            ).stdout.strip()
+
+            # Final values
+            genome_length = int(genome_length) if genome_length.isdigit() else 0
+            transposase_length = int(transposase_length) if transposase_length.isdigit() else 0
+            ratio = transposase_length / genome_length if genome_length > 0 else 0
+
+            # Positions formatted
+            positions_list = []
+            for line in transposase_positions.split('\n'):
+                if line.strip():
+                    parts = line.split('\t')
+                    if len(parts) >= 3:
+                        positions_list.append(f"{parts[1]}-{parts[2]}")
+            positions_str = "; ".join(positions_list)
+
+            out.write(f"{accession}\t{genome_length}\t{origin}\t{ratio:.15f}\t{positions_str}\n")
+
+        except subprocess.CalledProcessError as e:
+            print(f"  ⚠️ Error processing {accession}: {e}")
+            out.write(f"{accession}\t0\t\t0.000000000000000\t\n")
+
+print("\nProcessing complete. Results saved in trans_fractpos_with_ori.txt.")
+
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+from matplotlib.backends.backend_pdf import PdfPages
+import numpy as np
+
+def parse_positions(position_str):
+    """Parse position string into list of (start, end) tuples"""
+    positions = []
+    if not position_str.strip():
+        return positions
+    for item in position_str.split(';'):
+        item = item.strip()
+        if '-' in item:
+            start, end = map(int, item.split('-'))
+            positions.append((start, end))
+    return positions
+
+def draw_genome_diagram(ax, label, positions, genome_length, origin):
+    """Draw a single genome diagram with transposase positions and origin"""
+    ax.set_title(f"{label}\nGenome Length: {genome_length:,} bp", fontsize=10)
+    ax.set_xlim(0, genome_length)
+    ax.set_ylim(0, 1)
+    ax.set_yticks([])
+    ax.set_xlabel("Genomic Position (bp)", fontsize=8)
+
+    # Draw the genome as a grey line
+    ax.axhline(0.5, color='grey', linewidth=2, alpha=0.7)
+
+    # Draw scale markers
+    for x in np.linspace(0, genome_length, 11):
+        ax.axvline(x, color='lightgrey', linestyle='--', alpha=0.5)
+        ax.text(x, 0.1, f"{x/1000:.0f}k", ha='center', fontsize=6)
+
+    # Draw transposase features
+    for i, (start, end) in enumerate(positions):
+        width = end - start
+        rect = patches.Rectangle(
+            (start, 0.4), width, 0.2,
+            linewidth=1, edgecolor='red', facecolor='red', alpha=0.7
+        )
+        ax.add_patch(rect)
+        if i % 5 == 0 and width > genome_length * 0.01:
+            ax.text((start + end) / 2, 0.7, f"{start}-{end}", ha='center', fontsize=5, rotation=45)
+
+    # Mark the origin of replication
+    if origin is not None and 0 <= origin <= genome_length:
+        triangle = patches.RegularPolygon(
+            (origin, 0.5), numVertices=3, radius=genome_length * 0.01,
+            orientation=np.pi, color='green', alpha=0.9
+        )
+        ax.add_patch(triangle)
+        ax.text(origin, 0.75, "Origin", ha='center', fontsize=6, color='green')
+
+def visualize_transposases_with_origin(input_file, output_pdf):
+    """Create visualizations from input file with origin info"""
+    with open(input_file) as f, PdfPages(output_pdf) as pdf:
+        next(f)  # Skip header
+        for line in f:
+            if not line.strip():
+                continue
+            parts = line.strip().split('\t')
+            if len(parts) < 5:
+                continue
+
+            label = parts[0]
+            try:
+                genome_length = int(float(parts[1]))
+                origin = int(parts[2]) if parts[2] else None
+                positions_str = parts[4]
+            except (ValueError, IndexError):
+                continue
+
+            positions = parse_positions(positions_str)
+            if not positions:
+                continue
+
+            fig, ax = plt.subplots(figsize=(15, 2))
+            draw_genome_diagram(ax, label, positions, genome_length, origin)
+
+            plt.tight_layout()
+            pdf.savefig(fig)
+            plt.close()
+
+    print(f"Visualizations saved to {output_pdf}")
+
+# Example usage
+input_file = "trans_fractpos_with_ori.txt"
+output_pdf = "transposase_visualizations_with_ori.pdf"
+visualize_transposases_with_origin(input_file, output_pdf)
+
+
+
