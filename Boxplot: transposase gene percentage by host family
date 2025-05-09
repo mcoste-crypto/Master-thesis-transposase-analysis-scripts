@@ -36,7 +36,7 @@ ggplot(data, aes(x = Host_family, y = Perc_trans)) +
     legend.title = element_text(size = 12)
   )
 
-#Add black outline to figure 
+# Add black outline to figure 
 grid.rect(gp = gpar(col = "black", lwd = 3, fill = NA))
 
 # Create ordered factor for Seq_tech_read_length with new labels
@@ -63,7 +63,7 @@ ggplot(data, aes(x = Host_family, y = Perc_trans)) +
     legend.title = element_text(size = 12)
   )
 
-#Add black outline to figure  
+# Add black outline to figure  
 grid.rect(gp = gpar(col = "black", lwd = 3, fill = NA))
 
 # Print average and median
@@ -73,7 +73,7 @@ average_perc_trans <- data %>%
 print(average_perc_trans)
 print(median_perc_trans)
 
-#Define the outlier removal function
+# Define the outlier removal function
 remove_outliers <- function(df) {
   Q1 <- quantile(df$Perc_trans, 0.25, na.rm = TRUE)
   Q3 <- quantile(df$Perc_trans, 0.75, na.rm = TRUE)
