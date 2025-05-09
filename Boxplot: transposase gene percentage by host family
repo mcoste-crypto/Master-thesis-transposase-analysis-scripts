@@ -20,12 +20,31 @@ median_perc_trans <- data %>%
 
 data$Host_family <- factor(data$Host_family, levels = median_perc_trans$Host_family)
 
+# Create boxplot with simple beeswarm dots 
+ggplot(data, aes(x = Host_family, y = Perc_trans)) +
+  geom_boxplot(outlier.shape = NA) +  
+  geom_beeswarm(size = 1.5, shape = 16) +  
+  theme_minimal() +
+  labs(x = "Host Family", y = "Genome % of Transposase Genes", 
+       title = "Bacterial Genome % of Transposase Genes by Host Family") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 14),
+    axis.text.y = element_text(size = 14),
+    plot.title = element_text(size = 16),
+    axis.title.x = element_text(size = 14),
+    axis.title.y = element_text(size = 14, margin = margin(r = 10)),
+    legend.title = element_text(size = 12)
+  )
+
+#Add black outline to figure 
+grid.rect(gp = gpar(col = "black", lwd = 3, fill = NA))
+
 # Create ordered factor for Seq_tech_read_length with new labels
 data$Seq_tech_read_length <- factor(data$Seq_tech_read_length,
                                     levels = c("Short reads", "Long reads", "Short & long reads"),
                                     labels = c("Short", "Long", "Short & long"))
 
-# Create boxplot 
+# Create boxplot with sequence technology read lengths shown 
 ggplot(data, aes(x = Host_family, y = Perc_trans)) +
   geom_boxplot(outlier.shape = NA) +  # Boxplot with outliers removed
   geom_beeswarm(aes(shape = Seq_tech_read_length), size = 1.5) +  # Points with different shapes
@@ -44,6 +63,7 @@ ggplot(data, aes(x = Host_family, y = Perc_trans)) +
     legend.title = element_text(size = 12)
   )
 
+#Add black outline to figure  
 grid.rect(gp = gpar(col = "black", lwd = 3, fill = NA))
 
 # Print average and median
@@ -51,8 +71,17 @@ average_perc_trans <- data %>%
   group_by(Host_family) %>%
   summarise(Average_Perc_trans = mean(Perc_trans, na.rm = TRUE))
 print(average_perc_trans)
-
 print(median_perc_trans)
+
+#Define the outlier removal function
+remove_outliers <- function(df) {
+  Q1 <- quantile(df$Perc_trans, 0.25, na.rm = TRUE)
+  Q3 <- quantile(df$Perc_trans, 0.75, na.rm = TRUE)
+  IQR <- Q3 - Q1
+  lower_bound <- Q1 - 1.5 * IQR
+  upper_bound <- Q3 + 1.5 * IQR
+  df %>% filter(Perc_trans >= lower_bound & Perc_trans <= upper_bound)
+}
 
 # Apply the outlier removal function to each host family group
 data_no_outliers <- data %>%
@@ -79,4 +108,3 @@ ggplot(data_no_outliers, aes(x = Host_family, y = Perc_trans)) +
   )
 
 grid.rect(gp = gpar(col = "black", lwd = 3, fill = NA))
-
