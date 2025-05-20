@@ -1,31 +1,51 @@
 #This is a script to download gff files from the National Center of Biotechnology Information (NCBI) based on the accession number, extract the nucleotide positions for the genes annotated as "product=transposase" but not as a pseudogene ("pseudo=TRUE"), and then calculate the fraction of these genes compared to the total genome length and write that number in an output file. Script is deisgned to be used on multiple accession numbers therefore processing multiple genomes uploaded to NCBI.
 
 import subprocess
+
 input_file = "accession_nbs_grep.txt"
-output_file = "trans_gen_fract_grep.txt"
+output_file = "trans_fractpos.txt"
 
 with open(input_file) as f:
     accession_numbers = [line.strip() for line in f if line.strip()]
 
 with open(output_file, "w") as out:
+    # Write header line
+    out.write("Accession\tGenomeLength\tTransposaseFraction\tTransposasePositions\n")
+    
     for accession in accession_numbers:
         try:
             subprocess.run(["datasets", "download", "genome", "accession", accession, "--include", "gff3", "--filename", "genome_data.zip"], check=True)
             subprocess.run(["unzip", "-o", "genome_data.zip"], check=True)
             gff_file = f"ncbi_dataset/data/{accession}/genomic.gff"
 
-            # Get the genome length 
-            genome_length = subprocess.run(f"awk '$3 == \"region\" || $3 == \"chromosome\" || $3 == \"contig\" {{sum += $5 - $4 + 1}} END {{print sum}}' {gff_file}", 
-                                           stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, shell=True).stdout.strip()
+            # Get the genome length
+            genome_length = subprocess.run(
+                f"awk '$3 == \"region\" || $3 == \"chromosome\" || $3 == \"contig\" {{sum += $5 - $4 + 1}} END {{print sum}}' {gff_file}", 
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, shell=True
+            ).stdout.strip()
 
-            # List transposase beginning and end nucleotides in transposase.bed file but exclude transposases that are annotated as pseudogenes (with pseudo=true)
-            subprocess.run(f"grep -i 'transposase' {gff_file} | grep -v 'pseudo=true' | awk -v FS='\t' -v OFS='\t' '{{print $1, $4-1, $5}}' > transposase.bed", shell=True, check=True)
+            # Process the transposase annotations, but exclude pseudogenes
+            # Save the positions to a file and capture them for output
+            subprocess.run(
+                f"grep -i 'transposase' {gff_file} | grep -v 'pseudo=true' | awk -v FS='\t' -v OFS='\t' '{{print $1, $4-1, $5}}' > transposase.bed",  
+                shell=True, check=True
+            )
+            
+            # Get all transposase positions before merging
+            transposase_positions = subprocess.run(
+                "cat transposase.bed", 
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, shell=True
+            ).stdout.strip()
+            
+            # Process for calculations
             subprocess.run("sort -k1,1 -k2,2n transposase.bed > transposase_sorted.bed", shell=True, check=True)
             subprocess.run("bedtools merge -i transposase_sorted.bed > merged.bed", shell=True, check=True)
 
-            # Calculate the transposase gene length
-            transposase_length = subprocess.run("awk '{sum += $3 - $2} END {print sum}' merged.bed", 
-                                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, shell=True).stdout.strip()
+            # Calculate the transposase length
+            transposase_length = subprocess.run(
+                "awk '{sum += $3 - $2} END {print sum}' merged.bed", 
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, shell=True
+            ).stdout.strip()
             
             # Validate the lengths
             if genome_length.isdigit():
@@ -41,9 +61,20 @@ with open(output_file, "w") as out:
             # Calculate the ratio of transposase to genome length
             ratio = transposase_length / genome_length if genome_length > 0 else 0
             
+            # Format the positions as a semicolon-separated list of start-end pairs
+            positions_list = []
+            for line in transposase_positions.split('\n'):
+                if line.strip():
+                    parts = line.split('\t')
+                    if len(parts) >= 3:
+                        positions_list.append(f"{parts[1]}-{parts[2]}")
+            positions_str = "; ".join(positions_list)
+            
             # Write the result to the output file
-            out.write(f"{accession}\t{genome_length}\t{ratio:.15f}\n")
-        except subprocess.CalledProcessError:
-            print(f"Error processing {accession}")
+            out.write(f"{accession}\t{genome_length}\t{ratio:.15f}\t{positions_str}\n")
+            
+        except subprocess.CalledProcessError as e:
+            print(f"Error processing {accession}: {e}")
+            out.write(f"{accession}\t0\t0.000000000000000\t\n")
 
-print("Processing complete. Results saved in trans_gen_fract_grep.txt.")
+print("Processing complete. Results saved in trans_fractpos.txt.")
