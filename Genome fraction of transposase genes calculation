@@ -1,4 +1,4 @@
-#This is a script to download gff files from the NAtional Center of Biotechnology Information (NCBI) based on the accession number, extract the nucleotide positions for the genes annotated as "product=transposase" but not as a pseudogene ("pseudo=TRUE"), and then calculate the fraction of these genes compared to the total genome length and write that number in an output file. Script is deisgned to be used on multiple accession numbers therefore processing multiple genomes uploaded to NCBI.
+#This is a script to download gff files from the National Center of Biotechnology Information (NCBI) based on the accession number, extract the nucleotide positions for the genes annotated as "product=transposase" but not as a pseudogene ("pseudo=TRUE"), and then calculate the fraction of these genes compared to the total genome length and write that number in an output file. Script is deisgned to be used on multiple accession numbers therefore processing multiple genomes uploaded to NCBI.
 
 import subprocess
 input_file = "accession_nbs_grep.txt"
@@ -19,8 +19,7 @@ with open(output_file, "w") as out:
                                            stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, shell=True).stdout.strip()
 
             # List transposase beginning and end nucleotides in transposase.bed file but exclude transposases that are annotated as pseudogenes (with pseudo=true)
-            subprocess.run(f"grep -i 'transposase' {gff_file} | grep -v 'pseudo=true' | awk '{{if ($4 == \"CDS\") print $1, $5-1, $6; else print $1, $4-1, $5}}' OFS='\t' > transposase.bed", 
-                           shell=True, check=True)
+            subprocess.run(f"grep -i 'transposase' {gff_file} | grep -v 'pseudo=true' | awk -v FS='\t' -v OFS='\t' '{{print $1, $4-1, $5}}' > transposase.bed", shell=True, check=True)
             subprocess.run("sort -k1,1 -k2,2n transposase.bed > transposase_sorted.bed", shell=True, check=True)
             subprocess.run("bedtools merge -i transposase_sorted.bed > merged.bed", shell=True, check=True)
 
