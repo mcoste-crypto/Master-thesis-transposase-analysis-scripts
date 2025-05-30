@@ -1,4 +1,4 @@
-# Rcode for the scatterplot of the transposase gene percentage by total genome size and the appropriate statistical test
+# Rcode for the scatterplot of the transposase gene percentage by total genome size (differentiated by lifestyle by color) and the appropriate statistical test
 
 # Load necessary libraries
 library(ggplot2)
@@ -6,7 +6,7 @@ library(readxl)
 
 setwd("C:/Documents/Master thesis/R/Masterthestransproject/00-rawdata")
 
-# Read your data from the Excel file
+# Read data from the Excel file, need one column with genome size, one column with genome percentage of transposase genes, and one column with lifestyle (symbiotic or free-living) for each sample
 data <- read_excel("Perc_trans by genome size.xlsx")  # replace with your file path
 
 # Create the scatter plot
