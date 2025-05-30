@@ -1,4 +1,5 @@
-#The following bash script was used to annotate genomes from NCBI with the Prokaryotic Genome Annotation Pipeline (PGAP) using the fasta files of the genomes as input. It was run on the Harvard High Performance Computing (HPC) cluster. 
+# The following bash script was used to annotate genomes from NCBI with the Prokaryotic Genome Annotation Pipeline (PGAP) using the fasta files of the genomes as input. It was run on the Harvard High Performance Computing (HPC) cluster.
+# Need to have the PGAP package installed in the conda environment 
 # -o is the output directory and -g is the path to the input genome fasta file 
 
 #!/bin/sh
