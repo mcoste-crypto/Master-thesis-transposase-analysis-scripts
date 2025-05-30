@@ -1,17 +1,22 @@
-#This is a script to download gff files from the National Center of Biotechnology Information (NCBI) based on the accession number, extract the nucleotide positions for the genes annotated as "product=transposase" but not as a pseudogene ("pseudo=TRUE"), and then calculate the fraction of these genes compared to the total genome length and write that number in an output file. Script is deisgned to be used on multiple accession numbers therefore processing multiple genomes uploaded to NCBI.
+# This is a script to download GFF files from the National Center of Biotechnology Information (NCBI) based on the accession number, extract the nucleotide positions for the genes annotated as "product=transposase" but not as a pseudogene ("pseudo=TRUE"), and then calculate the fraction of these genes compared to the total genome length and write that number in an output file. Script is deisgned to be used on multiple accession numbers therefore processing multiple genomes uploaded to NCBI.
+# Need NCBI datasets cli and bedtools packages installed from bioconda in conda environment where this code is run: 
+# conda install -c conda-forge -c bioconda -c defaults ncbi-datasets-cli
+# conda install -c bioconda bedtools
 
 import subprocess
 
 input_file = "accession_nbs_grep.txt"
 output_file = "trans_fractpos.txt"
 
+# Once again input file is a text file with NCBI accession numbers, one per line
 with open(input_file) as f:
     accession_numbers = [line.strip() for line in f if line.strip()]
 
 with open(output_file, "w") as out:
     # Write header line
     out.write("Accession\tGenomeLength\tTransposaseFraction\tTransposasePositions\n")
-    
+
+    # Dowload the genomes by accession number from NCBI
     for accession in accession_numbers:
         try:
             subprocess.run(["datasets", "download", "genome", "accession", accession, "--include", "gff3", "--filename", "genome_data.zip"], check=True)
