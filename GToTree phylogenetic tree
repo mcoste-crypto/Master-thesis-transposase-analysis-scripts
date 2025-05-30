@@ -1,4 +1,4 @@
-#Script to build a phylogenetic tree with GToTree with the entire fasta files of the bacterial genomes as input. 
+# Script to build a phylogenetic tree with GToTree with the entire fasta files of the bacterial genomes as input. 
 
 import subprocess
 import os
@@ -10,7 +10,7 @@ subprocess.run("conda activate gtotree", shell=True, executable="/bin/bash")
 GENOME_DIR = "downloaded_genomes"
 os.makedirs(GENOME_DIR, exist_ok=True)
 
-# File containing accession numbers
+# File containing NCBI accession numbers (one per line)
 ACCESSION_FILE = "acc_nbs_allgenomes"
 
 # Download genomes from NCBI
