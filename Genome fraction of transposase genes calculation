@@ -16,7 +16,7 @@ with open(output_file, "w") as out:
     # Write header line
     out.write("Accession\tGenomeLength\tTransposaseFraction\tTransposasePositions\n")
 
-    # Dowload the genomes by accession number from NCBI
+    # Download the genomes by accession number from NCBI
     for accession in accession_numbers:
         try:
             subprocess.run(["datasets", "download", "genome", "accession", accession, "--include", "gff3", "--filename", "genome_data.zip"], check=True)
