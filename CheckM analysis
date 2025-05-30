@@ -1,4 +1,4 @@
-#This script is to perform the checkm lineage workflow on multiple genomes based on a list of NCBI accession numbers. This workflow was performed on all genomes that didn't have CHeckM quality values uploaded to NCBI. The following bash script was submitted as a bash job to the Harvard High Performance Computing (HPC) cluster. 
+# This script is to perform the checkm lineage workflow on multiple genomes based on a list of NCBI accession numbers. This workflow was performed on all genomes that didn't have CHeckM quality values uploaded to NCBI. The following bash script was submitted as a bash job to the Harvard High Performance Computing (HPC) cluster. 
 
 #!/bin/bash
 #SBATCH -c 8                # Number of cores (-c)
