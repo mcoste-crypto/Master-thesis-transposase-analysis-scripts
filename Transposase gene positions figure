@@ -39,9 +39,9 @@ with open(output_file, "w") as out:
                 origin = ""
                 print(f"  ❌ dnaA gene not found")
 
-            # Transposase regions with your updated awk logic
+            # Extract first and last nucleotide positions of transposase gene annotations
             subprocess.run(
-                f"grep -i 'transposase' {gff_file} | grep -v 'pseudo=true' | awk '{{if ($4 == \"CDS\") print $1, $5-1, $6; else print $1, $4-1, $5}}' OFS='\t' > transposase.bed", 
+                f"grep -i 'transposase' {gff_file} | grep -v 'pseudo=true' | awk -v FS='\t' -v OFS='\t' '{{print $1, $4-1, $5}}' > transposase.bed",  
                 shell=True, check=True
             )
 
@@ -97,7 +97,7 @@ def parse_positions(position_str):
     return positions
 
 def draw_genome_diagram(ax, label, positions, genome_length, origin):
-    """Draw a single genome diagram with transposase positions and origin"""
+    """Draw a genome diagram with transposase positions and origin of replication (dnaA gene marker)"""
     ax.set_title(f"{label}\nGenome Length: {genome_length:,} bp", fontsize=10)
     ax.set_xlim(0, genome_length)
     ax.set_ylim(0, 1.2)  # Add extra height for labels
@@ -116,7 +116,7 @@ def draw_genome_diagram(ax, label, positions, genome_length, origin):
         ax.plot([x, x], [tick_y, tick_y + tick_height], color='black', linewidth=0.5)  # Tick marks below chromosome
         ax.text(x, tick_y - 0.02, f"{x/1000:.0f}k", ha='center', va='top', fontsize=7)
 
-    # Draw transposase features
+    # Draw transposase genes
     for i, (start, end) in enumerate(positions):
         width = end - start
         rect = patches.Rectangle(
@@ -127,7 +127,7 @@ def draw_genome_diagram(ax, label, positions, genome_length, origin):
         if i % 5 == 0 and width > genome_length * 0.01:
             ax.text((start + end) / 2, 0.7, f"{start}-{end}", ha='center', fontsize=5, rotation=45)
 
-    # Mark the origin of replication
+    # Mark the origin of replication (dnaA gene)
     if origin is not None and 0 <= origin <= genome_length:
         triangle = patches.RegularPolygon(
             (origin, 0.5), numVertices=3, radius=genome_length * 0.01,
