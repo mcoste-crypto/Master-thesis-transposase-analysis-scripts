@@ -1,4 +1,4 @@
-#Rcode for the Bar plot figure of the transposase gene families count 
+# Rcode for the Bar plot figure of the transposase gene families count 
 
 # Load necessary libraries
 library(ggplot2)
@@ -9,7 +9,7 @@ library(dplyr)
 # Set working directory
 setwd("C:/Documents/Master thesis/R")
 
-# Read the Excel file
+# Read the Excel file (Layout: organism label in first column, name of all transposase family types in first row with a total at the end, and the count for each sample in each cell)
 data <- read_excel("transposase_fam_count_noVes.xlsx")
 
 # Ensure first column is named 'Organism'
