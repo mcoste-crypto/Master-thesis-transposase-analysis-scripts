@@ -1,4 +1,4 @@
-#This script is developed to write out in fasta format the nucleotide sequences of the 16S rRNA genes. Since these are bactrial genomes which contain multiple 16S rRNA genes per genome, all sequences are listed for each genome and a line is skipped between each genome. 
+# This script is developed to write out in fasta format the nucleotide sequences of the 16S rRNA genes. Since these are bactrial genomes which contain multiple 16S rRNA genes per genome, all sequences are listed for each genome and a line is skipped between each genome. 
 
 import subprocess
 import os
