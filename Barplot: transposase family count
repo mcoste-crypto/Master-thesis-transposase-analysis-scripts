@@ -5,26 +5,26 @@ library(ggplot2)
 library(readxl)
 library(tidyr)
 library(dplyr)
+library(here)
 
 # Set working directory
-setwd("C:/Documents/Master thesis/R")
+setwd(here("00-rawdata"))
 
-# Read the Excel file (Layout: organism label in first column, name of all transposase family types in first row with a total at the end, and the count for each sample in each cell)
+# Read the Excel file
 data <- read_excel("transposase_fam_count_noVes.xlsx")
 
 # Ensure first column is named 'Organism'
 colnames(data)[1] <- "Organism"
 
 # Filter out 'L. kazani symbiont' before assigning group labels
-#When using this filter rep of Lucinidae in group labels=6, otherwise=7
-#data <- data %>%
-#  filter(Organism != "L. kazani symbiont")
+# When using this filter rep of Lucinidae in group labels=6, otherwise=7
+data <- data %>%
+  filter(Organism != "L. kazani symbiont")
 
 # Define fixed group labels
-group_labels <- c(rep("Lucinidae", 7),
+group_labels <- c(rep("Lucinidae", 6),
                   rep("Solemyidae", 6),
-                  rep("Sibloginidae", 6),
-                  rep("Teredinidae", 6),
+                  rep("Siboglinidae", 6),
                   rep("Mytilidae", 8))
 
 # Assign groups, ensuring alignment with existing organisms
@@ -52,7 +52,7 @@ custom_colors <- c("DDE-type" = "#E41A1C", "IS110" = "#377EB8", "IS1182" = "#4DA
                    "Tn7" = "#8B4513", "REP-associated tyrosine" = "lightyellow2", 
                    "ISL3" = "mediumpurple1", "ISNCY" = "#D2691E", "Unclassified" = "darkgrey")
 
-# Compute group positions 
+# Compute host family group positions 
 group_positions <- data_long_filtered %>%
   group_by(Group) %>%
   summarise(start = min(as.numeric(Organism)), 
@@ -68,15 +68,18 @@ ggplot(data_long_filtered, aes(x = Organism, y = Count, fill = Transposase_Famil
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 60, hjust = 1),
         panel.grid.major.x = element_blank()) +
-  labs(x = "Organism", y = "Number of Transposases", fill = "Transposase Family") +
+  labs(title = "Distribution of Transposase Families in Symbionts Across Host Families",
+       x = "Symbiont", 
+       y = "Number of Transposase Genes", 
+       fill = "Transposase Family") +
   
   # Background rectangles for labels at a fixed height above the plot
   geom_rect(data = group_positions, 
-            aes(xmin = start - 0.2, xmax = end + 0.2, ymin = max_count + 50, ymax = max_count + 60),  # Grey background above the bars
+            aes(xmin = start - 0.2, xmax = end + 0.2, ymin = max_count + 50, ymax = max_count + 60),
             fill = "grey80", alpha = 0.5, inherit.aes = FALSE) +
   
   # Group labels at a fixed position above the graph
   geom_text(data = group_positions, 
-            aes(x = (start + end) / 2, y = max_count + 55, label = Group),  # Labels correctly aligned over groups
-            fontface = "bold", size = 4, inherit.aes = FALSE)
+            aes(x = (start + end) / 2, y = max_count + 55, label = Group),
+            fontface="bold", size = 3.7, inherit.aes = FALSE)
 
