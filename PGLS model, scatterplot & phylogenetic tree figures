@@ -57,11 +57,16 @@ names(colors) <- plot_tree$tip.label
 
 # Plot the tree with colored tip markers
 plot.phylo(plot_tree, show.tip.label = TRUE, label.offset = 0.037, cex = 0.8)
+
+# Add circles at the tips with color intensity representing transposase gene percentage (skip outgroup)
 for (i in 1:Ntip(plot_tree)) {
   if (plot_tree$tip.label[i] != outgroup_label) {
     tiplabels(pch = 21, bg = colors[i], cex = 1.5, adj = 0.5, offset = 0.011, tip = i)
   }
 }
+
+# Add a title to the tree
+title("Phylogenetic Tree (GToTree) of Marine Chemosynthetic Symbionts", line = 0.8, cex.main = 1)
 
 # Add gradient legend
 legend_colors <- color_palette(5)
