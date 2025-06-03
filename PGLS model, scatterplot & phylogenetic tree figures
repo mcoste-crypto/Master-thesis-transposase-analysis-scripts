@@ -1,4 +1,4 @@
-# The following is the R script for the construction of the PGLS model, phylogenetic signal tests, the scatterplot of transposase gene percentages based on genome size and host family, and the phylogenetic tree figure for marine symbiotic bacteria. The script can be adapted for the phylogenetic trees with, in addition to the marine symbionts, either free-living bacteria or terrestrial symbionts.  
+# The following is the R script for the phylogenetic tree figure, PGLS model, phylogenetic signal tests, and the scatterplot (genome size and host family vs transposase gene percentage) for marine symbiotic bacteria. The script can be adapted for the phylogenetic trees with, in addition to the marine symbionts, either free-living bacteria or terrestrial symbionts.  
 
 # Load libraries
 library(here)
