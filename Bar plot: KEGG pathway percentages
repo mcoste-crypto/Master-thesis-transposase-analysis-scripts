@@ -1,0 +1,65 @@
+library(readxl)
+library(tidyverse)
+library(here)
+
+setwd(here("00-rawdata"))
+
+excel_file <- "kegg_pathway_percentages.xlsx"
+
+# Read sheets
+sheet_lvl2 <- read_excel(excel_file, sheet = "KEGG_col2")
+sheet_lvl3 <- read_excel(excel_file, sheet = "KEGG_col3")
+
+plot_kegg_bars <- function(df, plot_title) {
+  
+  df_long <- df %>%
+    pivot_longer(
+      cols = c(Symbiotic, Freeliving),
+      names_to = "Lifestyle",
+      values_to = "Percentage"
+    )
+  
+  # Order pathways by max percentage (descending)
+  pathway_order <- df_long %>%
+    group_by(Pathway) %>%
+    summarise(max_pct = max(Percentage)) %>%
+    arrange(desc(max_pct)) %>%
+    pull(Pathway)
+  
+  pathway_order <- c(
+    pathway_order[pathway_order != "Other"],
+    "Other"
+  )
+  
+  df_long$Pathway <- factor(df_long$Pathway, levels = pathway_order)
+
+
+# Make the plots
+  ggplot(df_long, aes(x = Pathway, y = Percentage, fill = Lifestyle)) +
+    geom_bar(stat = "identity", position = position_dodge(width = 0.8)) +
+    labs(
+      title = plot_title,
+      x = "KEGG Pathways",
+      y = "Flanking Genes in Pathway (%)"
+    ) +
+    theme_bw() +
+    theme(
+      axis.text.x = element_text(angle = 70, hjust = 1),
+      plot.title = element_text(hjust = 0.5)
+    )
+}
+
+plot_lvl2 <- plot_kegg_bars(
+  sheet_lvl2,
+  "KEGG (Level 2) Pathways of TE Flanking Genes"
+)
+
+plot_lvl3 <- plot_kegg_bars(
+  sheet_lvl3,
+  "KEGG Pathways of TE Flanking Genes"
+)
+
+# Print the plots
+plot_lvl2
+plot_lvl3
+
