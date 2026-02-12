@@ -1,0 +1,101 @@
+from collections import defaultdict
+
+#GENE_FILE includes the flanking gene identification (accession number of genome and nucleotide position of gene) and its Kofam ID. The rows for TE flanking genes in symbiont genomes are followed by the rows for TE flanking genes in free-living genomes. The free-living group starts at the 'split accession'.
+#KOFAM_FILE includes the first, second and third (columns 1, 2, 3) specificity-level Kofam pathway attributed to each Kofam ID 
+
+GENE_FILE = "flanking_genes_kos.txt"
+KOFAM_FILE = "kofam_annotations.txt"
+SPLIT_ACCESSION = "GCF_001007875.1"
+
+
+def load_kofam_mapping(kofam_file):
+    """
+    Returns:
+        kofam_to_lvl2: Kxxxxx -> column 2 pathway
+        kofam_to_lvl3: Kxxxxx -> column 3 pathway
+    """
+    kofam_to_lvl2 = {}
+    kofam_to_lvl3 = {}
+
+    with open(kofam_file) as f:
+        for line in f:
+            parts = line.strip().split("\t")
+            if len(parts) < 4:
+                continue
+
+            lvl2 = parts[1]  
+            lvl3 = parts[2]   
+            kofam = parts[3]
+
+            kofam_to_lvl2[kofam] = lvl2
+            kofam_to_lvl3[kofam] = lvl3
+
+    return kofam_to_lvl2, kofam_to_lvl3
+
+
+def load_gene_kofams(gene_file):
+    """
+    Splits genes into Symbionts and FreeLiving based on accession.
+    Returns:
+        symbionts_kofams, freeliving_kofams
+    """
+    symbionts = []
+    freeliving = []
+    current_group = symbionts
+
+    with open(gene_file) as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+
+            # Switch to FreeLiving when split accession is reached
+            if line.startswith(SPLIT_ACCESSION):
+                current_group = freeliving
+
+            parts = line.split()
+            if len(parts) > 1 and parts[-1].startswith("K"):
+                current_group.append(parts[-1])
+
+    return symbionts, freeliving
+
+
+def calculate_percentages(kofams, kofam_to_pathway):
+    counts = defaultdict(int)
+
+    for k in kofams:
+        if k in kofam_to_pathway:
+            counts[kofam_to_pathway[k]] += 1
+
+    total = sum(counts.values())
+
+    percentages = {
+        pathway: (count / total) * 100
+        for pathway, count in counts.items()
+    }
+
+    return percentages, total
+
+
+def main():
+    kofam_to_lvl2, kofam_to_lvl3 = load_kofam_mapping(KOFAM_FILE)
+    symbionts, freeliving = load_gene_kofams(GENE_FILE)
+
+    for label, group in [("SYMBIONTS", symbionts), ("FREE-LIVING", freeliving)]:
+        print(f"\n{label}")
+        print(f"Total genes with Kofam IDs: {len(group)}")
+
+        lvl2_perc, _ = calculate_percentages(group, kofam_to_lvl2)
+        lvl3_perc, _ = calculate_percentages(group, kofam_to_lvl3)
+
+        print("\nLevel 2 pathways:")
+        for p, v in sorted(lvl2_perc.items(), key=lambda x: -x[1]):
+            print(f"{p}: {v:.2f}%")
+
+        print("\nLevel 3 pathways:")
+        for p, v in sorted(lvl3_perc.items(), key=lambda x: -x[1]):
+            print(f"{p}: {v:.2f}%")
+
+
+if __name__ == "__main__":
+    main()
