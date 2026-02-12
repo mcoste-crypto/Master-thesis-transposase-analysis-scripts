@@ -1,4 +1,4 @@
-# Rcode for the Bar plot figure of the transposase gene families count 
+# Rcode for the Bar plot figure of the transposase gene families count. This is the Rcode for the plot of symbionts; the same framework was used for free-living organisms. 
 
 # Load necessary libraries
 library(ggplot2)
@@ -11,23 +11,18 @@ library(here)
 setwd(here("00-rawdata"))
 
 # Read the Excel file
-data <- read_excel("transposase_fam_count_noVes.xlsx")
+data <- read_excel("Transposase_fam_count_noVes.xlsx")
 
 # Ensure first column is named 'Organism'
 colnames(data)[1] <- "Organism"
 
-# Filter out 'L. kazani symbiont' before assigning group labels
-# When using this filter rep of Lucinidae in group labels=6, otherwise=7
-data <- data %>%
-  filter(Organism != "L. kazani symbiont")
-
 # Define fixed group labels
-group_labels <- c(rep("Lucinidae", 6),
+group_labels <- c(rep("Lucinidae", 9),
                   rep("Solemyidae", 6),
                   rep("Siboglinidae", 6),
                   rep("Mytilidae", 8))
 
-# Assign groups, ensuring alignment with existing organisms
+# Assign groups ensuring alignment with existing organisms
 data$Group <- group_labels[1:nrow(data)]
 
 # Convert wide to long format
@@ -35,7 +30,11 @@ data_long <- data %>%
   pivot_longer(cols = -c(Organism, Group), 
                names_to = "Transposase_Family", 
                values_to = "Count") %>%
-  replace_na(list(Count = 0))  # Replace NA with 0
+  replace_na(list(Count = 0)) %>%
+  group_by(Organism) %>%
+  mutate(Proportion = Count / sum(Count),
+         Percentage = Proportion * 100) %>%
+  ungroup()
 
 # Ensure Organism is a factor with correct order
 data_long_filtered <- data_long %>%
@@ -43,43 +42,44 @@ data_long_filtered <- data_long %>%
          Group = factor(Group, levels = unique(Group)))
 
 # Define colors for transposase families
-custom_colors <- c("DDE-type" = "#E41A1C", "IS110" = "#377EB8", "IS1182" = "#4DAF4A",
-                   "IS1380" = "#8A2BE2", "IS1595" = "#FFFF33", "IS200/IS605" = "#00CED1",
-                   "IS21" = "#F781BF", "IS256" = "black", "IS3" = "lightskyblue1",
-                   "IS30" = "#FC8D62", "IS481" = "#8DA0CB", "IS5" = "#DAA520",
-                   "IS630" = "#A6D854", "IS66" = "#FF00FF", "IS91" = "#FF0000", "IS4" = "#0000FF", 
-                   "IS6" = "#00FF00", "IS1" = "#FFD700", "Tn3" = "#F0E68C", 
-                   "Tn7" = "#8B4513", "REP-associated tyrosine" = "lightyellow2", 
-                   "ISL3" = "mediumpurple1", "ISNCY" = "#D2691E", "Unclassified" = "darkgrey")
+custom_colors <- c("DDE-type" = "red3", "IS1" = "red", "IS110" = "#FC8D62", "IS1182" = "#FFD700",
+                   "IS1380" =  "navajowhite1", "IS1595" = "#FFFF33" , "IS200/IS605" = "lightyellow2",
+                   "IS21" = "#A6D854", "IS256" = "#4DAF4A", "IS3" = "darkgreen",
+                   "IS30" = "lawngreen","IS4" = "#00CED1", "IS402"= "lightskyblue1", "IS481" = "#377EB8", "IS5/InsH" = "#0000FF",
+                   "IS6" =  "navyblue", "IS630" = "#8A2BE2", "IS66" = "mediumorchid2", "IS91" = "#F781BF",  
+                   "ISAs1" ="#FF00FF", "ISL3" = "#8DA0CB", "ISNCY" = "darkgrey", "Mu"= "lightgrey", "REP-assoc tyr" = "#DAA520", "Tn3" = "#D2691E", 
+                   "Tn7" = "#8B4513", "IS801" = "plum1", "Unclassified"="white"
+                   )
 
-# Compute host family group positions 
+# Compute group positions 
 group_positions <- data_long_filtered %>%
   group_by(Group) %>%
-  summarise(start = min(as.numeric(Organism)), 
-            end = max(as.numeric(Organism)), 
-            max_y = max(Count), .groups = "drop")
+  summarise(start = min(as.numeric(Organism)),
+            end = max(as.numeric(Organism)),
+            max_y = max(Percentage), .groups = "drop")
 
-# Get the maximum count value to use for a fixed y position for all labels
-max_count <- max(data_long_filtered$Count)
-
-ggplot(data_long_filtered, aes(x = Organism, y = Count, fill = Transposase_Family)) +
+# Create the plot of percentages of transposase families by organism genome 
+ggplot(data_long_filtered, aes(x = Organism, y = Percentage, fill = Transposase_Family)) +
   geom_bar(stat = "identity") +
   scale_fill_manual(values = custom_colors) +
+  scale_y_continuous(limits = c(0, NA)) +
+  coord_cartesian(ylim = c(0, 100), clip = "off") +
   theme_minimal() +
+  theme(plot.margin = margin(t = 20, r = 10, b = 10, l = 10)) +
   theme(axis.text.x = element_text(angle = 60, hjust = 1),
-        panel.grid.major.x = element_blank()) +
-  labs(title = "Distribution of Transposase Families in Symbionts Across Host Families",
-       x = "Symbiont", 
-       y = "Number of Transposase Genes", 
+        panel.grid.major.x = element_blank(), plot.title = element_text(margin = margin(b = 20))) +
+  labs(x = "Symbiont", 
+       y = "Percentage of Total Transposase Genes", 
        fill = "Transposase Family") +
-  
-  # Background rectangles for labels at a fixed height above the plot
-  geom_rect(data = group_positions, 
-            aes(xmin = start - 0.2, xmax = end + 0.2, ymin = max_count + 50, ymax = max_count + 60),
-            fill = "grey80", alpha = 0.5, inherit.aes = FALSE) +
-  
-  # Group labels at a fixed position above the graph
-  geom_text(data = group_positions, 
-            aes(x = (start + end) / 2, y = max_count + 55, label = Group),
-            fontface="bold", size = 3.7, inherit.aes = FALSE)
+
+# Background rectangle for group labels
+geom_rect(data = group_positions,
+        aes(xmin = start - 0.2, xmax = end + 0.2, 
+            ymin = 102, ymax = 108),
+        fill = "grey80", alpha = 0.5, inherit.aes = FALSE) +
+
+# Group labels
+geom_text(data = group_positions,
+          aes(x = (start + end) / 2, y = 105, label = Group),
+          fontface = "bold", size = 3.7, inherit.aes = FALSE)
 
