@@ -11,84 +11,81 @@ library(phytools)
 library(ggplot2)
 library(grid)
 
-# Set working directory
 setwd(here("02-phylodata"))
 
-# Load data
-transdata <- read_excel("For PGLS-Perc_trans vs host_fam.xlsx") %>%
+# Load transposase gene percentage data
+transdata <- read_excel("For PGLS-Perc_trans vs host_fam.xlsx") %>% 
   rename(sp = Tree_label)
-head(transdata)
 
-# Load the phylogenetic tree
-symbiont_tree <- read.tree("ultrametric_gtotree_symb_rootedoutgroup.txt")
+perc_trans <- transdata$Perc_trans
+names(perc_trans) <- transdata$sp  # Match names to the tree tip labels
 
-# Extract accession numbers
-accession_numbers <- sapply(strsplit(symbiont_tree$tip.label, "_"), function(x) paste(x[1], x[2], sep = "_"))
-symbiont_tree$tip.label <- accession_numbers
-
-# Create tree for visualization
-plot_tree <- symbiont_tree
-outgroup_tip <- "GCF_000376425.1"
-outgroup_label <- "Thiobacillus denitrificans"
-plot_tree$tip.label[plot_tree$tip.label == outgroup_tip] <- outgroup_label
+# Load phylogenetic tree
+symbionts_tree <- read.tree("ultra_gtotreeiq.txt") 
 
 # Create tree for stats analyses (without the outgroup)
 analysis_tree <- drop.tip(symbiont_tree, "GCF_000376425.1")
 analysis_tree$edge.length <- analysis_tree$edge.length * 100  # Required for PGLS and phylosig
 
-# Attribute names to transposase gene percentages 
-perc_trans <- transdata$Perc_trans
-names(perc_trans) <- transdata$sp
+# Reformat tip labels 
+tree_labels <- symbionts_tree$tip.label
+accession_numbers <- sapply(strsplit(tree_labels, "_"), function(x) paste(x[1], x[2], sep = "_"))
+symbionts_tree$tip.label <- accession_numbers
 
-# Reorder perc_trans for plotting tree
-plot_perc_trans <- perc_trans[match(plot_tree$tip.label, names(perc_trans))]
+# Define the outgroup
+outgroup_tip <- "GCF_000376425.1"
+outgroup_label <- "Thiobacillus denitrificans"
+symbionts_tree$tip.label[symbionts_tree$tip.label == outgroup_tip] <- outgroup_label
 
-# Replace tip labels with Final_label (excluding the outgroup)
-for (i in 1:Ntip(plot_tree)) {
-  if (plot_tree$tip.label[i] != outgroup_label) {
-    plot_tree$tip.label[i] <- transdata$Final_label[match(plot_tree$tip.label[i], transdata$sp)]
+# Reorder transposase percentage to match tip labels
+perc_trans <- perc_trans[match(symbionts_tree$tip.label, names(perc_trans))]
+
+# Replace tip labels (accession numbers) with the final label (invertebrate symbiont)
+for (i in 1:Ntip(symbionts_tree)) {
+  if (symbionts_tree$tip.label[i] != outgroup_label) {
+    symbionts_tree$tip.label[i] <- transdata$Final_label[match(symbionts_tree$tip.label[i], transdata$sp)]
   }
 }
 
-# Create color gradient for percentage
+# Color tip circles according to transposase gene percentage (0-4)
 color_palette <- colorRampPalette(c("white", "black"))
-colors <- color_palette(100)[as.numeric(cut(plot_perc_trans, breaks = 100))]
-names(colors) <- plot_tree$tip.label
+colors <- color_palette(100)[as.numeric(cut(perc_trans, breaks = 100))]
+names(colors) <- symbionts_tree$tip.label
 
-# Plot the tree with colored tip markers
-plot.phylo(plot_tree, show.tip.label = TRUE, label.offset = 0.037, cex = 0.8)
+# Host family boxes
+host_family_colors <- rainbow(length(unique(transdata$Host_family)))
+names(host_family_colors) <- unique(transdata$Host_family)
 
-# Add circles at the tips with color intensity representing transposase gene percentage (skip outgroup)
-for (i in 1:Ntip(plot_tree)) {
-  if (plot_tree$tip.label[i] != outgroup_label) {
+# Plot the tree
+original_par <- par(mar = c(1, 2, 2, 0.2))
+plot.phylo(symbionts_tree, show.tip.label = TRUE, label.offset = 0.037, cex = 0.8)
+
+# Tip circles for transposase percentages
+for (i in 1:Ntip(symbionts_tree)) {
+  if (symbionts_tree$tip.label[i] != outgroup_label) {
     tiplabels(pch = 21, bg = colors[i], cex = 1.5, adj = 0.5, offset = 0.011, tip = i)
   }
 }
 
-# Add a title to the tree
-title("Phylogenetic Tree (GToTree) of Marine Chemosynthetic Symbionts", line = 0.8, cex.main = 1)
-
-# Add gradient legend
+# Legend for transposase gene percentages in genomes
 legend_colors <- color_palette(5)
-legend_labels <- round(seq(min(perc_trans, na.rm = TRUE), max(perc_trans, na.rm = TRUE), length.out = 5))
-legend("topleft", legend = legend_labels, pch = 21, pt.bg = legend_colors, 
-       title = "Genome % of Transposase Genes", cex = 0.8, bty = "o", box.col = "black", box.lwd = 0.2, horiz = TRUE, pt.cex = 1.5)
+legend_labels <- round(seq(0, 4, length.out = 5))
+legend("topleft", legend = legend_labels, pch = 21, pt.bg = legend_colors,
+       title = "Transposase Genes (%)", cex = 0.8, bty = "o", box.col = "black", box.lwd = 0.2, horiz = TRUE, pt.cex = 1.5, inset = c(0.05, 0.0))
 
-# Add host family colored label boxes
-host_family_colors <- rainbow(length(unique(transdata$Host_family)))
-names(host_family_colors) <- unique(transdata$Host_family)
+# Tip coordinates for host family tinted boxes
+tip_coords <- get("last_plot.phylo", envir = .PlotPhyloEnv)$xx[1:Ntip(symbionts_tree)]
+label_coords <- get("last_plot.phylo", envir = .PlotPhyloEnv)$yy[1:Ntip(symbionts_tree)]
 
-tip_coords <- get("last_plot.phylo", envir = .PlotPhyloEnv)$xx[1:Ntip(plot_tree)]
-label_coords <- get("last_plot.phylo", envir = .PlotPhyloEnv)$yy[1:Ntip(plot_tree)]
-
-for (i in 1:Ntip(plot_tree)) {
-  if (plot_tree$tip.label[i] != outgroup_label) {
-    host_family <- transdata$Host_family[match(plot_tree$tip.label[i], transdata$Final_label)]
+# Host family tinted boxes
+for (i in 1:Ntip(symbionts_tree)) {
+  if (symbionts_tree$tip.label[i] != outgroup_label) {
+    host_family <- transdata$Host_family[match(symbionts_tree$tip.label[i], transdata$Final_label)]
     box_color <- host_family_colors[host_family]
-
-    box_width <- strwidth(plot_tree$tip.label[i], cex = 0.8) * 1.2
-    box_height <- strheight(plot_tree$tip.label[i], cex = 0.8) * 1.2
-
+    
+    box_width <- strwidth(symbionts_tree$tip.label[i], cex = 0.8) * 1.2
+    box_height <- strheight(symbionts_tree$tip.label[i], cex = 0.8) * 1.2
+    
     rect(
       xleft = tip_coords[i] + 0.04,
       ybottom = label_coords[i] - box_height / 2,
@@ -100,9 +97,69 @@ for (i in 1:Ntip(plot_tree)) {
   }
 }
 
-# Create legend for host family
-legend("topleft", legend = names(host_family_colors), fill = adjustcolor(host_family_colors, alpha.f = 0.3),
-       title = "Host Family", cex = 0.8, bty = "o", box.col = "black", box.lwd = 0.2, inset = c(0, 0.15))
+# Host family legend
+legend("topleft", legend = names(host_family_colors),
+       fill = adjustcolor(host_family_colors, alpha.f = 0.3),
+       title = "Host Family", cex = 0.8, bty = "o", box.col = "black", box.lwd = 0.2, inset = c(0.05, 0.10))
+
+# Define bootstrap values 
+boot_values <- c(100, 100, 100, 100, 95, 80, 100, 100, 100, 100, 100, 40,
+                 57, 100, 100, 63, 59, 100, 73, 99, 100, 100, 100, 100, 
+                 99, 100, 100, 100, 52, 100, 100, 100, 100, 100, 100, 83, 81)
+
+
+# Match bootstrap values to symbols
+boot_symbols <- sapply(boot_values, function(b) {
+  if (b >= 95) "*"      
+  else if (b >= 80) "+" 
+  else if (b >= 59) "~" 
+  else "x"                   # small wavy line for <60
+})
+
+# Add bootstrap symbols at internal nodes
+boot_sizes <- sapply(boot_values, function(b) {
+  if (b >= 95) 2.0       # make star larger
+  else if (b >= 80) 1.6  
+  else if (b >= 60) 1.6  
+  else 1.2               
+})
+
+n_internal <- symbionts_tree$Nnode
+for(i in 1:n_internal) {
+  node_num <- Ntip(symbionts_tree) + i
+  nodelabels(text = boot_symbols[i], node = node_num, frame = "none",
+             cex = boot_sizes[i], col = "red")
+}
+
+# Legend for bootstraps
+legend_symbols <- c("*", "+", "~", "x")  # same as used on nodes
+legend_labels2 <- c("95-100", "80-95", "60-80", "40-60")
+
+legend("topleft", legend = paste(legend_symbols, legend_labels2),
+       bty = "o", box.col = "black", box.lwd = 0.2, cex = 0.8, inset = c(0.05, 0.31), title = "Bootstraps")
+
+legend("topleft", 
+       legend = legend_labels2,
+       text.col = "black",
+       bty = "o",
+       box.col = "black", 
+       box.lwd = 0.2,
+       cex = 0.8,
+       inset = c(0.05, 0.31),
+       title = "Bootstraps",
+       text.width = 0.15)  # ensures space for symbol
+
+# Add symbols after bootstrap values in legend
+legend("topleft", 
+       legend = legend_symbols,
+       text.col = "red",
+       bty = "n",  # no box for second call
+       cex = 1.4,  # larger symbols
+       inset = c(0.1, 0.327), 
+       x.intersp = 0.5,
+       y.intersp = 0.54)
+
+
 
 # PGLS model
 pglsModel <- gls(
