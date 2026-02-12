@@ -1,4 +1,4 @@
-# The following is the R script for the phylogenetic tree figure (with boostrap value symbols), the PGLS model, the phylogenetic signal tests, and the scatterplot (genome size and host family vs transposase gene percentage) for marine symbiotic bacteria. The script can be adapted for the phylogenetic trees with, in addition to the marine symbionts, free-living bacteria.  
+# The following is the R script for the phylogenetic tree figure (with bootstrap value symbols), the PGLS model, the phylogenetic signal tests, and the scatterplot (genome size and host family vs transposase gene percentage) for marine symbiotic bacteria. The script can be adapted for the phylogenetic trees with, in addition to the marine symbionts, free-living bacteria.  
 
 # Load libraries
 library(here)
