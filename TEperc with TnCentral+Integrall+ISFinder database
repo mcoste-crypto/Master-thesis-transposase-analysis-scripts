@@ -1,0 +1,89 @@
+To run this bash script, first download the combined TnCentral, Integrall, and ISFinder BLAST database on the TnCentral website: https://tncentral.ncc.unesp.br/data_download
+A conda (mamba) environment with the BLAST dependencies is also required. (here environment called tncentral)
+Fasta sequences of genomes to analyze should be downloaded in "genomes" folder.
+
+#!/bin/bash
+#SBATCH -c 8
+#SBATCH -t 1-00:00
+#SBATCH -p sapphire
+#SBATCH --mem=32G
+#SBATCH -o tncentral_%j.out
+#SBATCH -e tncentral_%j.err
+
+source /n/home08/mcoste/miniconda3/bin/activate
+module load Mambaforge/23.11.0-fasrc01
+mamba activate /n/home08/mcoste/miniconda3/envs/tncentral
+
+DB="/n/netscratch/girguis_lab/Lab/m_coste/TE_combined_db/tncentral_integrall_isfinder.fa"
+
+mkdir -p tncentralextradatasets_results
+
+echo -e "Genome\tTE_nt\tGenome_length\tTE_fraction" \
+    > TE_summary_extradatasets.tsv
+
+for GENOME in genomes/*.fna; do
+
+    BASENAME=$(basename "$GENOME" .fna)
+
+    echo "==================================="
+    echo "Processing $BASENAME"
+    echo "==================================="
+
+    OUTDIR="tncentralextradatasets_results/${BASENAME}"
+    mkdir -p "$OUTDIR"
+
+    # Genome length
+    GENOME_LEN=$(awk '!/^>/ {sum += length($0)}
+                      END {print sum+0}' "$GENOME")
+
+    # BLAST against TnCentral, Integrall, and ISFinder database
+    blastn \
+        -query "$GENOME" \
+        -db "$DB" \
+        -evalue 1e-10 \
+        -perc_identity 80 \
+        -outfmt "6 qseqid qstart qend length pident bitscore evalue" \
+        -num_threads 8 \
+        > "$OUTDIR/hits.tsv"
+
+    if [ ! -s "$OUTDIR/hits.tsv" ]; then
+        echo -e "$BASENAME\t0\t$GENOME_LEN\t0" \
+            >> TE_summary_extradatasets.tsv
+        continue
+    fi
+
+    # Convert hits to BED coordinates
+    awk '{
+        start = ($2 < $3 ? $2 : $3)
+        end   = ($2 > $3 ? $2 : $3)
+
+        print $1 "\t" start-1 "\t" end
+    }' "$OUTDIR/hits.tsv" \
+    | sort -k1,1 -k2,2n \
+    | bedtools merge \
+    > "$OUTDIR/merged.bed"
+
+    # Sum TE coverage
+    TE_TOTAL=$(awk '{
+        sum += ($3-$2)
+    }
+    END {
+        print sum+0
+    }' "$OUTDIR/merged.bed")
+
+    FRACTION=$(awk -v a="$TE_TOTAL" -v b="$GENOME_LEN" '
+        BEGIN {
+            if (b > 0)
+                printf "%.6f", a/b
+            else
+                print 0
+        }')
+
+    echo -e \
+        "$BASENAME\t$TE_TOTAL\t$GENOME_LEN\t$FRACTION" \
+        >> TE_summary_extradatasets.tsv
+
+done
+
+echo "Finished."
+echo "Results written to TE_summary_extradatasets.tsv"
